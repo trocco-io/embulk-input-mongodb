@@ -163,7 +163,7 @@ public class MongodbInputPlugin
         final TaskMapper taskMapper = CONFIG_MAPPER_FACTORY.createTaskMapper();
         final PluginTask task = taskMapper.map(taskSource, PluginTask.class);
         BufferAllocator allocator = Exec.getBufferAllocator();
-        PageBuilder pageBuilder = Exec.getPageBuilder(allocator, schema, output);
+        PageBuilder pageBuilder = getPageBuilder(allocator, schema, output);
         final Column column = pageBuilder.getSchema().getColumns().get(0);
 
         ValueCodec valueCodec = new ValueCodec(task.getStopOnInvalidRecord(), task);
@@ -480,4 +480,24 @@ public class MongodbInputPlugin
             throw new ConfigException(String.format("Invalid JSON string was given for '%s' parameter. [%s]", name, jsonString));
         }
     }
+
+    @SuppressWarnings("deprecation")
+    private static PageBuilder getPageBuilder(final BufferAllocator bufferAllocator, final Schema schema, final PageOutput output) {
+        if (HAS_EXEC_GET_PAGE_BUILDER) {
+            return Exec.getPageBuilder(bufferAllocator, schema, output);
+        } else {
+            return new PageBuilder(bufferAllocator, schema, output);
+        }
+    }
+
+    private static boolean hasExecGetPageBuilder() {
+        try {
+            Exec.class.getMethod("getPageBuilder", BufferAllocator.class, Schema.class, PageOutput.class);
+        } catch (final NoSuchMethodException ex) {
+            return false;
+        }
+        return true;
+    }
+
+    private static final boolean HAS_EXEC_GET_PAGE_BUILDER = hasExecGetPageBuilder();
 }
