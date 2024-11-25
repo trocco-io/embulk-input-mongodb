@@ -482,18 +482,17 @@ public class MongodbInputPlugin
     }
 
     @SuppressWarnings("deprecation")
-    private static PageBuilder getPageBuilder(final BufferAllocator bufferAllocator, final Schema schema, final PageOutput output) {
-        if (HAS_EXEC_GET_PAGE_BUILDER) {
-            return Exec.getPageBuilder(bufferAllocator, schema, output);
-        } else {
-            return new PageBuilder(bufferAllocator, schema, output);
-        }
+    private static PageBuilder getPageBuilder(final BufferAllocator bufferAllocator, final Schema schema, final PageOutput output)
+    {
+        return HAS_EXEC_GET_PAGE_BUILDER ? Exec.getPageBuilder(bufferAllocator, schema, output) : new PageBuilder(bufferAllocator, schema, output);
     }
 
-    private static boolean hasExecGetPageBuilder() {
+    private static boolean hasExecGetPageBuilder()
+    {
         try {
             Exec.class.getMethod("getPageBuilder", BufferAllocator.class, Schema.class, PageOutput.class);
-        } catch (final NoSuchMethodException ex) {
+        }
+        catch (final NoSuchMethodException ex) {
             return false;
         }
         return true;
