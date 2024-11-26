@@ -11,5 +11,5 @@ They are licensed under the Apache Software License, Version 2.0.
 The gem distribution of this product includes JARs of the Jakarta Bean Validation API 1.1 (https://beanvalidation.org/1.1/), as-is.
 It is licensed under the Apache Software License, Version 2.0.
 
-The gem distribution of this product includes a JAR of MongoDB Java Driver (https://mongodb.github.io/mongo-java-driver/), as-is.
+The gem distribution of this product includes a JAR of mongo-java-driver (https://github.com/mongodb/mongo-java-driver), as-is.
 It is licensed under the Apache Software License, Version 2.0.
