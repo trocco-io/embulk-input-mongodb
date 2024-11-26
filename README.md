@@ -7,7 +7,7 @@ This plugin loads documents as single-column records (column name is "record"). 
 
 ## Overview
 
-This plugin only works with embulk >= 0.8.8.
+This plugin only works with embulk >= 0.8.8 and MongoDB 4.0 to 8.0 (See [MongoDB Java Driver Version 5.2 Compatibility](https://www.mongodb.com/docs/drivers/java/sync/v5.2/compatibility/))
 
 * **Plugin type**: input
 * **Guess supported**: no
@@ -21,7 +21,7 @@ This plugin only works with embulk >= 0.8.8.
     - **uri**: [MongoDB connection string URI](https://docs.mongodb.org/manual/reference/connection-string/) (e.g. 'mongodb://localhost:27017/mydb') (string, required)
   - use separated URI parameters
     - **hosts**: list of hosts. `hosts` are pairs of host(string, required) and port(integer, optional, default: 27017)
-    - **auth_method**: Auth method. One of `scram-sha-1`, `mongodb-cr`, `auto` (string, optional, default: null)
+    - **auth_method**: Auth method. One of `scram-sha-256`, `scram-sha-1`, `auto` (string, optional, default: `auto`)
     - **auth_source**: Auth source. The database name where the user is defined (string, optional, default: null)
     - **user**: (string, optional)
     - **password**:  (string, optional)
@@ -69,11 +69,14 @@ in:
   collection: "my_collection"
 ```
 
-If you set `auth_method: auto`, The client will negotiate the best mechanism based on the version of the server that the client is authenticating to.
+If you set `auth_method: auto`, the [default authentication mechanism](https://www.mongodb.com/docs/drivers/java/sync/v5.2/fundamentals/auth/#std-label-default-auth-mechanism) setting uses one of the following authentication mechanisms depending on what your version of MongoDB Server supports:
 
-If the server version is 3.0 or higher, the driver will authenticate using the SCRAM-SHA-1 mechanism.
+1. SCRAM-SHA-256
+2. SCRAM-SHA-1
+3. MONGODB-CR
 
-Otherwise, the driver will authenticate using the MONGODB_CR mechanism. 
+[MONGODB-CR](https://www.mongodb.com/docs/drivers/java/sync/v5.2/fundamentals/auth/#mongodb-cr) was deprecated starting in MongoDB 3.6 and is no longer supported as of MongoDB 4.0.
+You cannot specify this method explicitly; refer to the fallback provided by the `auto` to connect using MONGODB-CR.
 
 #### Use URI String
 
