@@ -89,7 +89,7 @@ public class TestMongodbInputPlugin
     public void createResources()
     {
         config = config();
-        plugin = new MongodbInputPlugin();
+        plugin = new MongodbInputPluginWithTimeout();
         output = new MockPageOutput();
     }
 
