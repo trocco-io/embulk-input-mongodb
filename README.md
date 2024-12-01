@@ -92,6 +92,45 @@ in:
   uri: mongodb://myuser:mypassword@localhost:27017/my_database?authMechanism=SCRAM-SHA-1&authSource=another_database
 ```
 
+### KeyStore and TrustStore
+
+You can add keyStore and TrustStore to SSLContext.
+This parameter can be used for TLS connection and X.509 authentication.
+
+These are examples of the docker-compose.yml in this repository.
+
+```yaml
+# tls
+in:
+  type: mongodb
+  hosts:
+  - { host: localhost, port: 27017 }
+  user: mongo_user
+  password: dbpass
+  database: embulk_test
+  collection: products
+  tls: true
+  key_store: ./src/test/resources/keystore.p12
+  key_store_type: PKCS12
+  key_store_password: password
+  trust_store: ./src/test/resources/truststore.jks
+  trust_store_type: JKS
+  trust_store_password: password
+
+# x.509
+
+in:
+  type: mongodb
+  uri: 'mongodb://localhost:27017/embulk_test?tls=true&authMechanism=MONGODB-X509'
+  collection: products
+  key_store: ./src/test/resources/keystore.p12
+  key_store_type: PKCS12
+  key_store_password: password
+  trust_store: ./src/test/resources/truststore.jks
+  trust_store_type: JKS
+  trust_store_password: password
+```
+
 ### Exporting all objects
 
 #### Specify with MongoDB connection string URI.
