@@ -21,15 +21,21 @@ This plugin only works with embulk >= 0.8.8 and MongoDB 4.0 to 8.0 (See [MongoDB
     - **uri**: [MongoDB connection string URI](https://docs.mongodb.org/manual/reference/connection-string/) (e.g. 'mongodb://localhost:27017/mydb') (string, required)
   - use separated URI parameters
     - **hosts**: list of hosts. `hosts` are pairs of host(string, required) and port(integer, optional, default: 27017)
-    - **auth_method**: Auth method. One of `scram-sha-256`, `scram-sha-1`, `auto` (string, optional, default: `auto`)
+    - **auth_method**: Auth method. One of `scram-sha-256`, `scram-sha-1`, `x-509`, `auto` (string, optional, default: `auto`)
     - **auth_source**: Auth source. The database name where the user is defined (string, optional, default: null)
     - **user**: (string, optional)
     - **password**:  (string, optional)
     - **database**:  (string, required)
     - **tls**: `true` to use TLS to connect to the host (boolean, optional, default: `false`)
-    - **tls_insecure**: `true` to disable various certificate validations (boolean, optional, default: `false`)
       - The option is similar to an option of the official `mongo` command.
       - See also: https://www.mongodb.com/docs/manual/reference/connection-string/#mongodb-urioption-urioption.tlsInsecure
+- **tls_insecure**: `true` to disable various certificate validations (boolean, optional, default: `false`)
+- **key_store**: fullpath of keyStore (string, optional, default: null)
+- **key_store_type**: keyStore type (string, optional, default: null)
+- **key_store_password**: keyStore password (string, optional, default: null)
+- **trust_store**: fullpath of trustStore (string, optional, default: null)
+- **trust_store_type**: trustStore type (string, optional, default: null)
+- **trust_store_password**: trustStore password (string, optional, default: null)
 - **collection**: source collection name (string, required)
 - **fields**: **(deprecated)** ~~hash records that has the following two fields (array, required)~~
   ~~- name: Name of the column~~

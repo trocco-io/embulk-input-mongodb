@@ -19,6 +19,7 @@ package org.embulk.input.mongodb;
 import org.embulk.util.config.Config;
 import org.embulk.util.config.ConfigDefault;
 import org.embulk.util.config.Task;
+import org.embulk.util.config.units.LocalFile;
 import org.embulk.util.config.units.SchemaConfig;
 
 import javax.validation.constraints.Min;
@@ -52,6 +53,30 @@ public interface PluginTask
     @Config("auth_method")
     @ConfigDefault("null")
     Optional<AuthMethod> getAuthMethod();
+
+    @Config("key_store")
+    @ConfigDefault("null")
+    Optional<LocalFile> getKeyStore();
+
+    @Config("key_store_type")
+    @ConfigDefault("null")
+    Optional<String> getKeyStoreType();
+
+    @Config("key_store_password")
+    @ConfigDefault("null")
+    Optional<String> getKeyStorePassword();
+
+    @Config("trust_store")
+    @ConfigDefault("null")
+    Optional<LocalFile> getTrustStore();
+
+    @Config("trust_store_type")
+    @ConfigDefault("null")
+    Optional<String> getTrustStoreType();
+
+    @Config("trust_store_password")
+    @ConfigDefault("null")
+    Optional<String> getTrustStorePassword();
 
     @Config("auth_source")
     @ConfigDefault("null")
