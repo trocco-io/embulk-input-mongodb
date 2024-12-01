@@ -46,7 +46,6 @@ import org.embulk.spi.Schema;
 import org.embulk.spi.TestPageBuilderReader.MockPageOutput;
 import org.embulk.spi.type.Types;
 import org.embulk.util.config.ConfigMapperFactory;
-import org.hamcrest.Matcher;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -64,6 +63,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.TimeZone;
 
+import static org.embulk.input.mongodb.AssertUtil.assertThat;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertEquals;
 
@@ -850,11 +850,5 @@ public class TestMongodbInputPlugin
       DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", java.util.Locale.ENGLISH);
       dateFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
       return dateFormat;
-    }
-
-    @SuppressWarnings("deprecation")
-    public static <T> void assertThat(T actual, Matcher<? super T> matcher)
-    {
-        org.junit.Assert.assertThat(actual, matcher);
     }
 }
