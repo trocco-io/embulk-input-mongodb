@@ -54,14 +54,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.net.ssl.SSLContext;
-import javax.net.ssl.TrustManager;
-import javax.net.ssl.X509TrustManager;
 
 import java.io.IOException;
 import java.net.UnknownHostException;
-import java.security.KeyManagementException;
-import java.security.NoSuchAlgorithmException;
-import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -302,10 +297,19 @@ public class MongodbInputPlugin
         }
 
         if (task.getUri().isPresent()) {
-            ConnectionString connectionString = new ConnectionString(task.getUri().get());
+            ConnectionString connectionString = newConnectionString(task);
             database = connectionString.getDatabase();
+
             MongoClientSettings settings = MongoClientSettings.builder()
                     .applyConnectionString(connectionString)
+                    .applyToSslSettings(b -> {
+                        if (Boolean.TRUE.equals(connectionString.getSslEnabled())) {
+                            SSLContext sslContext = SSLContextUtil.createContext(task);
+                            if (sslContext != null) {
+                                b.context(sslContext);
+                            }
+                        }
+                    })
                     .build();
             mongoClient = MongoClients.create(settings);
         }
@@ -318,6 +322,11 @@ public class MongodbInputPlugin
         // Get collection count for throw Exception
         db.getCollection(task.getCollection()).countDocuments();
         return db;
+    }
+
+    protected ConnectionString newConnectionString(PluginTask task)
+    {
+        return new ConnectionString(task.getUri().get());
     }
 
     private MongoClient createClientFromParams(PluginTask task)
@@ -336,13 +345,11 @@ public class MongodbInputPlugin
 
         MongoClientSettings.Builder baseBuilder = MongoClientSettings.builder(createMongoClientSettings(task))
                 .applyToClusterSettings(builder -> builder.hosts(addresses));
-        if (task.getUser().isPresent()) {
-            baseBuilder.credential(createCredential(task));
-        }
+        baseBuilder.credential(createCredential(task));
         return MongoClients.create(baseBuilder.build());
     }
 
-    private MongoClientSettings createMongoClientSettings(PluginTask task)
+    protected MongoClientSettings createMongoClientSettings(PluginTask task)
     {
         MongoClientSettings.Builder builder = MongoClientSettings.builder();
         if (task.getTls()) {
@@ -350,40 +357,15 @@ public class MongodbInputPlugin
                 b.enabled(true);
                 if (task.getTlsInsecure()) {
                     b.invalidHostNameAllowed(true);
-                    b.context(createSSLContextToAcceptAnyCert());
+                }
+
+                SSLContext sslContext = SSLContextUtil.createContext(task);
+                if (sslContext != null) {
+                    b.context(sslContext);
                 }
             });
         }
         return builder.build();
-    }
-
-    private SSLContext createSSLContextToAcceptAnyCert()
-    {
-        TrustManager[] trustAllCerts = new TrustManager[] {
-                new X509TrustManager()
-                {
-                    public X509Certificate[] getAcceptedIssuers()
-                    {
-                        return new X509Certificate[0];
-                    }
-                    public void checkClientTrusted(
-                            X509Certificate[] certs, String authType)
-                    {
-                    }
-                    public void checkServerTrusted(
-                            X509Certificate[] certs, String authType)
-                    {
-                    }
-                }
-        };
-        try {
-            SSLContext sc = SSLContext.getInstance("SSL");
-            sc.init(null, trustAllCerts, new java.security.SecureRandom());
-            return sc;
-        }
-        catch (NoSuchAlgorithmException | KeyManagementException e) {
-            throw new ConfigException(e);
-        }
     }
 
     // @see https://www.mongodb.com/docs/drivers/java/sync/current/fundamentals/auth/
@@ -404,6 +386,9 @@ public class MongodbInputPlugin
                         task.getUser().get(),
                         authSource,
                         task.getPassword().get().toCharArray());
+                break;
+            case X_509:
+                credential = MongoCredential.createMongoX509Credential(task.getUser().orElse(null));
                 break;
             case AUTO:
             default:

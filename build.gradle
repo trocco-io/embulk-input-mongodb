@@ -61,6 +61,9 @@ test {
         outputs.upToDateWhen { false }
         showStandardStreams = true
     }
+    forkEvery = 10
+    maxParallelForks = 1
+    maxHeapSize = '1G'
 }
 
 jar {
