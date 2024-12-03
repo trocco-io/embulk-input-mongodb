@@ -4,15 +4,23 @@ plugins {
     id "signing"
     id "checkstyle"
     id "org.embulk.embulk-plugins" version "0.4.2"
+    id "com.palantir.git-version" version "0.12.3"
 }
 
 repositories {
     mavenCentral()
 }
 
-group = "org.embulk"
-version = "0.8.2-SNAPSHOT"
+group = "io.trocco"
 description = "Loads records from Mongodb."
+version = {
+    def vd = versionDetails()
+    if (vd.commitDistance == 0 && vd.lastTag ==~ /^[0-9]+\.[0-9]+\.[0-9]+(\.[a-zA-Z0-9]+)?/) {
+        vd.lastTag
+    } else {
+        "0.0.0.${vd.gitHash}"
+    }
+}()
 
 sourceCompatibility = 1.8
 targetCompatibility = 1.8
@@ -159,10 +167,10 @@ signing {
 }
 
 gem {
-    authors = [ "Kazuyuki Honda", "Dai MIKURUBE" ]
-    email = [ "hakobera@gmail.com", "dmikurube@treasure-data.com" ]
+    authors = [ "" ]
+    email = [ "" ]
     summary = "Mongodb input plugin for Embulk"
-    homepage = "https://github.com/embulk/embulk-input-mongodb"
+    homepage = "https://github.com/trocco-io/embulk-input-mongodb"
     licenses = [ "Apache-2.0" ]
 
     from rootProject.file("LICENSE")
