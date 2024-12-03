@@ -1,5 +1,16 @@
 name: main
-on: push
+
+on:
+  push:
+    branches:
+      - 'master'
+    tags:
+      - '*'
+  pull_request:
+    branches:
+      - 'master'
+    types: [opened, synchronize]
+
 jobs:
   test:
     runs-on: ubuntu-latest
