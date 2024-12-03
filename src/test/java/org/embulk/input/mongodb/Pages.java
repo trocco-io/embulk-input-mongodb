@@ -16,15 +16,16 @@
 
 package org.embulk.input.mongodb;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.List;
 import org.embulk.spi.Column;
 import org.embulk.spi.ColumnVisitor;
 import org.embulk.spi.Page;
 import org.embulk.spi.PageReader;
 import org.embulk.spi.Schema;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.List;
 
 class Pages
 {
@@ -38,6 +39,7 @@ class Pages
         return toObjects(schema, pages, false);
     }
 
+    @SuppressWarnings("deprecation") // new PageReader(schema)
     private static List<Object[]> toObjects(final Schema schema, final Iterable<Page> pages, final boolean useInstant)
     {
         final ArrayList<Object[]> builder = new ArrayList<>();

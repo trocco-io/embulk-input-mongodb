@@ -21,8 +21,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
-import com.mongodb.MongoClientOptions;
-import com.mongodb.MongoClientURI;
+import com.mongodb.ConnectionString;
+import com.mongodb.MongoClientSettings;
 import com.mongodb.MongoCredential;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
@@ -63,9 +63,9 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.TimeZone;
 
+import static org.embulk.input.mongodb.AssertUtil.assertThat;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 
 public class TestMongodbInputPlugin
 {
@@ -77,6 +77,7 @@ public class TestMongodbInputPlugin
     @Rule
     public EmbulkTestRuntime runtime = new EmbulkTestRuntime();
 
+    @SuppressWarnings("deprecation")
     @Rule
     public ExpectedException exception = ExpectedException.none();
 
@@ -191,6 +192,22 @@ public class TestMongodbInputPlugin
     }
 
     @Test
+    public void testCreateCredentialsSha256() throws Exception
+    {
+        final PluginTask task = CONFIG_MAPPER_FACTORY.createConfigMapper().map(
+                configForAuth().deepCopy()
+                        .set("auth_method", "scram-sha-256")
+                        .set("database", "db"),
+                PluginTask.class);
+
+        Method createCredential = MongodbInputPlugin.class.getDeclaredMethod("createCredential", PluginTask.class);
+        createCredential.setAccessible(true);
+        MongoCredential credential = (MongoCredential) createCredential.invoke(plugin, task);
+        assertThat("SCRAM-SHA-256", is(credential.getMechanism()));
+        assertThat("db", is(credential.getSource()));
+    }
+
+    @Test
     public void testCreateCredentialsSha1() throws Exception
     {
         final PluginTask task = CONFIG_MAPPER_FACTORY.createConfigMapper().map(
@@ -223,7 +240,7 @@ public class TestMongodbInputPlugin
         assertThat("authdb", is(credential.getSource()));
     }
 
-    @Test
+    @Test(expected = ConfigException.class)
     public void testCreateCredentialsCr() throws Exception
     {
         final PluginTask task = CONFIG_MAPPER_FACTORY.createConfigMapper().map(
@@ -238,46 +255,46 @@ public class TestMongodbInputPlugin
     }
 
     @Test
-    public void testCreateMongoClientOptionsTLSEnableWithInsecureEnable() throws Exception
+    public void testCreateMongoClientSettingsTLSEnableWithInsecureEnable() throws Exception
     {
         final PluginTask task = CONFIG_MAPPER_FACTORY.createConfigMapper().map(
                 configForAuth().deepCopy()
                         .set("tls", "true")
                         .set("tls_insecure", "true"),
                 PluginTask.class);
-        Method createMongoClientOptions = MongodbInputPlugin.class.getDeclaredMethod("createMongoClientOptions", PluginTask.class);
-        createMongoClientOptions.setAccessible(true);
-        MongoClientOptions mongoClientOptions = (MongoClientOptions) createMongoClientOptions.invoke(plugin, task);
-        assertThat(true, is(mongoClientOptions.isSslEnabled()));
-        assertThat(true, is(mongoClientOptions.isSslInvalidHostNameAllowed()));
+        Method createMongoClientSettings = MongodbInputPlugin.class.getDeclaredMethod("createMongoClientSettings", PluginTask.class);
+        createMongoClientSettings.setAccessible(true);
+        MongoClientSettings mongoClientSettings = (MongoClientSettings) createMongoClientSettings.invoke(plugin, task);
+        assertThat(true, is(mongoClientSettings.getSslSettings().isEnabled()));
+        assertThat(true, is(mongoClientSettings.getSslSettings().isInvalidHostNameAllowed()));
     }
 
     @Test
-    public void testCreateMongoClientOptionsTLSEnableWithInsecureDisable() throws Exception
+    public void testCreateMongoClientSettingsTLSEnableWithInsecureDisable() throws Exception
     {
         final PluginTask task = CONFIG_MAPPER_FACTORY.createConfigMapper().map(
                 configForAuth().deepCopy()
                         .set("tls", "true"),
                 PluginTask.class);
-        Method createMongoClientOptions = MongodbInputPlugin.class.getDeclaredMethod("createMongoClientOptions", PluginTask.class);
-        createMongoClientOptions.setAccessible(true);
-        MongoClientOptions mongoClientOptions = (MongoClientOptions) createMongoClientOptions.invoke(plugin, task);
-        assertThat(true, is(mongoClientOptions.isSslEnabled()));
-        assertThat(false, is(mongoClientOptions.isSslInvalidHostNameAllowed()));
+        Method createMongoClientSettings = MongodbInputPlugin.class.getDeclaredMethod("createMongoClientSettings", PluginTask.class);
+        createMongoClientSettings.setAccessible(true);
+        MongoClientSettings mongoClientSettings = (MongoClientSettings) createMongoClientSettings.invoke(plugin, task);
+        assertThat(true, is(mongoClientSettings.getSslSettings().isEnabled()));
+        assertThat(false, is(mongoClientSettings.getSslSettings().isInvalidHostNameAllowed()));
     }
 
     @Test
-    public void testCreateMongoClientOptionsTLSDisable() throws Exception
+    public void testCreateMongoClientSettingsTLSDisable() throws Exception
     {
         final PluginTask task = CONFIG_MAPPER_FACTORY.createConfigMapper().map(
                 configForAuth().deepCopy()
                         .set("tls", "false"),
                 PluginTask.class);
-        Method createMongoClientOptions = MongodbInputPlugin.class.getDeclaredMethod("createMongoClientOptions", PluginTask.class);
-        createMongoClientOptions.setAccessible(true);
-        MongoClientOptions mongoClientOptions = (MongoClientOptions) createMongoClientOptions.invoke(plugin, task);
-        assertThat(false, is(mongoClientOptions.isSslEnabled()));
-        assertThat(false, is(mongoClientOptions.isSslInvalidHostNameAllowed()));
+        Method createMongoClientSettings = MongodbInputPlugin.class.getDeclaredMethod("createMongoClientSettings", PluginTask.class);
+        createMongoClientSettings.setAccessible(true);
+        MongoClientSettings mongoClientSettings = (MongoClientSettings) createMongoClientSettings.invoke(plugin, task);
+        assertThat(false, is(mongoClientSettings.getSslSettings().isEnabled()));
+        assertThat(false, is(mongoClientSettings.getSslSettings().isInvalidHostNameAllowed()));
     }
 
     @Test
@@ -300,7 +317,9 @@ public class TestMongodbInputPlugin
     {
         final PluginTask task = CONFIG_MAPPER_FACTORY.createConfigMapper().map(config, PluginTask.class);
         Schema schema = getFieldSchema();
-        plugin.cleanup(task.dump(), schema, 0, Lists.<TaskReport>newArrayList()); // no errors happens
+        @SuppressWarnings("deprecation") // task.dump
+        TaskSource dump = task.dump();
+        plugin.cleanup(dump, schema, 0, Lists.<TaskReport>newArrayList()); // no errors happens
     }
 
     @Test
@@ -360,14 +379,14 @@ public class TestMongodbInputPlugin
     @Test
     public void testRunWithConnectionParams() throws Exception
     {
-        MongoClientURI uri = new MongoClientURI(mongoUri);
-        String host = uri.getHosts().get(0);
+        ConnectionString connectionString = new ConnectionString(mongoUri);
+        String host = connectionString.getHosts().get(0);
         Integer port = (host.split(":")[1] != null) ? Integer.valueOf(host.split(":")[1]) : 27017;
         ConfigSource config = CONFIG_MAPPER_FACTORY.newConfigSource()
                 .set("hosts", Arrays.asList(ImmutableMap.of("host", host.split(":")[0], "port", port)))
-                .set("user", uri.getUsername())
-                .set("password", uri.getPassword())
-                .set("database", uri.getDatabase())
+                .set("user", connectionString.getUsername())
+                .set("password", connectionString.getPassword())
+                .set("database", connectionString.getDatabase())
                 .set("collection", mongoCollection);
         final PluginTask task = CONFIG_MAPPER_FACTORY.createConfigMapper().map(config, PluginTask.class);
 
@@ -521,7 +540,7 @@ public class TestMongodbInputPlugin
     }
 
     @Test
-    public void testNormlizeWithIdFieldName() throws Exception
+    public void testNormalizeWithIdFieldName() throws Exception
     {
         ConfigSource config = config().set("id_field_name", "object_id");
 
@@ -813,7 +832,7 @@ public class TestMongodbInputPlugin
         Method method = MongodbInputPlugin.class.getDeclaredMethod("connect", PluginTask.class);
         method.setAccessible(true);
         MongoDatabase db = (MongoDatabase) method.invoke(plugin, task);
-        MongoCollection collection = db.getCollection(collectionName);
+        MongoCollection<Document> collection = db.getCollection(collectionName);
         collection.drop();
     }
 
@@ -822,7 +841,7 @@ public class TestMongodbInputPlugin
         Method method = MongodbInputPlugin.class.getDeclaredMethod("connect", PluginTask.class);
         method.setAccessible(true);
         MongoDatabase db = (MongoDatabase) method.invoke(plugin, task);
-        MongoCollection collection = db.getCollection(task.getCollection());
+        MongoCollection<Document> collection = db.getCollection(task.getCollection());
         collection.insertMany(documents);
     }
 
