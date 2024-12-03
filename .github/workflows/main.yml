@@ -39,7 +39,7 @@ jobs:
       - name: Build a gem
         run: ./gradlew gem
       - name: Mongo DB
-        run: mongoimport --host 127.0.0.1 -u mongo_user -p dbpass --db $MONGO_DATABASE --collection $MONGO_COLLECTION --type json --drop src/test/resources/my_collection.jsonl
+        run: docker compose exec mongodb mongoimport --host 127.0.0.1 -u mongo_user -p dbpass --db $MONGO_DATABASE --collection $MONGO_COLLECTION --type json --drop src/test/resources/my_collection.jsonl
       - run: ~/.embulk/bin/embulk run -L build/gemContents src/test/resources/basic.yml
       - run: cat tmp/basic000.00.csv
       - run: cmp tmp/basic000.00.csv src/test/resources/basic_expected.csv
