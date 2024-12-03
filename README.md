@@ -225,16 +225,16 @@ $ ./gradlew gem
 
 ## Test
 
-Firstly install Docker and Docker compose then `docker-compose up -d`,
+Firstly install Docker and Docker compose then `docker compose up -d`,
 so that an MongoDB server will be locally launched then you can run tests with `./gradlew test`.
 
 ```sh
-$ docker-compose up -d
+$ docker compose up -d
 Creating embulk-input-mongodb_server ... done
 Creating mongo-express               ... done
 Creating mongoClientTemp             ... done
 
-$ docker-compose ps
+$ docker compose ps
            Name                          Command                 State                            Ports
 ------------------------------------------------------------------------------------------------------------------------------
 embulk-input-mongodb_server   docker-entrypoint.sh mongod      Up           0.0.0.0:27017->27017/tcp, 0.0.0.0:27018->27018/tcp
