@@ -102,11 +102,6 @@ gem {
     rename ("NOTICE_GEM", "NOTICE")
 }
 
-gemPush {
-    host = "https://rubygems.org"
-    outputs.upToDateWhen { false }
-}
-
 checkstyle {
     configFile = file("${project.rootDir}/config/checkstyle/checkstyle.xml")
     toolVersion = '6.14.1'
