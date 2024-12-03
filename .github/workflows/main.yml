@@ -53,7 +53,7 @@ jobs:
         if: always()
         with:
           name: tests
-          path: ./*/build/reports/tests/test
+          path: ./build/reports/tests/test
   build:
     name: Build + Publish
     runs-on: ubuntu-latest
