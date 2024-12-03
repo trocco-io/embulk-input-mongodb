@@ -27,8 +27,8 @@ jobs:
           distribution: "zulu"
       - run: mkdir -p ./tmp
       - run: date
-      - run: docker-compose up -d
-      - run: docker-compose ps
+      - run: docker compose up -d
+      - run: docker compose ps
       - name: Check
         run: ./gradlew check --console rich --info
       - name: Install Embulk
