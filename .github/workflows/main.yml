@@ -33,7 +33,7 @@ jobs:
       - name: Check
         run: ./gradlew check --console rich --info
       - name: Install Embulk
-        run: curl --create-dirs -o ~/.embulk/bin/embulk -L "https://dl.embulk.org/embulk-0.10.19.jar"
+        run: curl --create-dirs -o ~/.embulk/bin/embulk -L "https://github.com/embulk/embulk/releases/download/v0.10.19/embulk-0.10.19.jar"
       - name: Set Embulk executable
         run: chmod +x ~/.embulk/bin/embulk
       - run: ~/.embulk/bin/embulk --version
