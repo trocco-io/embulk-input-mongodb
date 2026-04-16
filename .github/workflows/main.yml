@@ -6,6 +6,7 @@ on:
       - 'master'
     tags:
       - '*'
+  workflow_dispatch:
   pull_request:
     branches:
       - 'master'
@@ -19,9 +20,9 @@ jobs:
       MONGO_COLLECTION: my_collection
       MONGO_URI: mongodb://localhost:27017/mydb
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
       - name: Set up JDK 8
-        uses: actions/setup-java@v2
+        uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9
         with:
           java-version: 8
           distribution: "zulu"
@@ -49,7 +50,7 @@ jobs:
       - run: ~/.embulk/bin/embulk run -L build/gemContents src/test/resources/id_field_name.yml
       - run: cat tmp/id_field_name000.00.csv
       - run: cmp tmp/id_field_name000.00.csv src/test/resources/id_field_name_expected.csv
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
           name: tests
@@ -63,13 +64,13 @@ jobs:
     needs: [ test ]
     if: ${{ github.event_name == 'workflow_dispatch' || contains(github.ref, 'refs/tags/') }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
       - name: Set up Ruby 2.7
-        uses: ruby/setup-ruby@v1
+        uses: ruby/setup-ruby@ec02537da5712d66d4d50a0f33b7eb52773b5ed1
         with:
           ruby-version: 2.7
       - name: push gem
-        uses: trocco-io/push-gem-to-gpr-action@v1
+        uses: trocco-io/push-gem-to-gpr-action@45b5555df22deab4b5105bddee46bce9e7ca61db
         with:
           language: java
           gem-path: "./build/gems/*.gem"
