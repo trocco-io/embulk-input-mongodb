@@ -18,12 +18,13 @@ package org.embulk.input.mongodb;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mongodb.BasicDBObject;
-import com.mongodb.MongoClient;
-import com.mongodb.MongoClientOptions;
-import com.mongodb.MongoClientURI;
+import com.mongodb.ConnectionString;
+import com.mongodb.MongoClientSettings;
 import com.mongodb.MongoCredential;
 import com.mongodb.MongoException;
 import com.mongodb.ServerAddress;
+import com.mongodb.client.MongoClient;
+import com.mongodb.client.MongoClients;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoCursor;
 import com.mongodb.client.MongoDatabase;
@@ -55,6 +56,7 @@ import org.slf4j.LoggerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
+
 import java.io.IOException;
 import java.net.UnknownHostException;
 import java.security.KeyManagementException;
@@ -172,7 +174,7 @@ public class MongodbInputPlugin
             MongoDatabase db = connect(task);
 
             CodecRegistry registry = CodecRegistries.fromRegistries(
-                    MongoClient.getDefaultCodecRegistry(),
+                    MongoClientSettings.getDefaultCodecRegistry(),
                     CodecRegistries.fromCodecs(valueCodec)
             );
             collection = db.getCollection(task.getCollection(), Value.class)
@@ -300,9 +302,12 @@ public class MongodbInputPlugin
         }
 
         if (task.getUri().isPresent()) {
-            MongoClientURI uri = new MongoClientURI(task.getUri().get());
-            database = uri.getDatabase();
-            mongoClient = new MongoClient(uri);
+            ConnectionString connectionString = new ConnectionString(task.getUri().get());
+            database = connectionString.getDatabase();
+            MongoClientSettings settings = MongoClientSettings.builder()
+                    .applyConnectionString(connectionString)
+                    .build();
+            mongoClient = MongoClients.create(settings);
         }
         else {
             mongoClient = createClientFromParams(task);
@@ -311,7 +316,7 @@ public class MongodbInputPlugin
 
         MongoDatabase db = mongoClient.getDatabase(database);
         // Get collection count for throw Exception
-        db.getCollection(task.getCollection()).count();
+        db.getCollection(task.getCollection()).countDocuments();
         return db;
     }
 
@@ -329,23 +334,25 @@ public class MongodbInputPlugin
             addresses.add(new ServerAddress(host.getHost(), host.getPort()));
         }
 
+        MongoClientSettings.Builder baseBuilder = MongoClientSettings.builder(createMongoClientSettings(task))
+                .applyToClusterSettings(builder -> builder.hosts(addresses));
         if (task.getUser().isPresent()) {
-            return new MongoClient(addresses, Arrays.asList(createCredential(task)), createMongoClientOptions(task));
+            baseBuilder.credential(createCredential(task));
         }
-        else {
-            return new MongoClient(addresses, createMongoClientOptions(task));
-        }
+        return MongoClients.create(baseBuilder.build());
     }
 
-    private MongoClientOptions createMongoClientOptions(PluginTask task)
+    private MongoClientSettings createMongoClientSettings(PluginTask task)
     {
-        MongoClientOptions.Builder builder = new MongoClientOptions.Builder();
+        MongoClientSettings.Builder builder = MongoClientSettings.builder();
         if (task.getTls()) {
-            builder.sslEnabled(true);
-            if (task.getTlsInsecure()) {
-                builder.sslInvalidHostNameAllowed(true);
-                builder.sslContext(createSSLContextToAcceptAnyCert());
-            }
+            builder.applyToSslSettings(b -> {
+                b.enabled(true);
+                if (task.getTlsInsecure()) {
+                    b.invalidHostNameAllowed(true);
+                    b.context(createSSLContextToAcceptAnyCert());
+                }
+            });
         }
         return builder.build();
     }
@@ -379,7 +386,7 @@ public class MongodbInputPlugin
         }
     }
 
-    // @see http://mongodb.github.io/mongo-java-driver/3.0/driver-async/reference/connecting/authenticating/
+    // @see https://www.mongodb.com/docs/drivers/java/sync/current/fundamentals/auth/
     private MongoCredential createCredential(PluginTask task)
     {
         MongoCredential credential;
@@ -392,18 +399,20 @@ public class MongodbInputPlugin
                         authSource,
                         task.getPassword().get().toCharArray());
                 break;
-            case MONGODB_CR:
-                credential = MongoCredential.createMongoCRCredential(
+            case SCRAM_SHA_256:
+                credential = MongoCredential.createScramSha256Credential(
                         task.getUser().get(),
                         authSource,
                         task.getPassword().get().toCharArray());
                 break;
             case AUTO:
             default:
-                /* The client will negotiate the best mechanism based on the
-                 * version of the server that the client is authenticating to.
-                 * If the server version is 3.0 or higher, the driver will authenticate using the SCRAM-SHA-1 mechanism.
-                 * Otherwise, the driver will authenticate using the MONGODB_CR mechanism.
+                /* https://www.mongodb.com/docs/drivers/java/sync/v5.2/fundamentals/auth/#std-label-default-auth-mechanism
+                 * The default authentication mechanism setting uses one of the following authentication mechanisms
+                 * depending on what your version of MongoDB Server supports:
+                 * 1. SCRAM-SHA-256
+                 * 2. SCRAM-SHA-1
+                 * 3. MONGODB-CR (deprecated. This can't be specified explicitly and used by `auto` fallback)
                  */
                 credential = MongoCredential.createCredential(
                         task.getUser().get(),

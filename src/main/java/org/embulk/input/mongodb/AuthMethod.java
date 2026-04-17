@@ -26,7 +26,7 @@ public enum AuthMethod
 {
     AUTO,
     SCRAM_SHA_1,
-    MONGODB_CR;
+    SCRAM_SHA_256;
 
     @JsonValue
     @Override
@@ -39,10 +39,10 @@ public enum AuthMethod
     public static AuthMethod fromString(String value)
     {
         switch (value.replace("_", "-")) {
+            case "scram-sha-256":
+                return SCRAM_SHA_256;
             case "scram-sha-1":
                 return SCRAM_SHA_1;
-            case "mongodb-cr":
-                return MONGODB_CR;
             case "auto":
                 return AUTO;
             default:
