@@ -1,18 +1,24 @@
 plugins {
     id "java"
-    id "maven-publish"
-    id "signing"
     id "checkstyle"
     id "org.embulk.embulk-plugins" version "0.4.2"
+    id "com.palantir.git-version" version "0.12.3"
 }
 
 repositories {
     mavenCentral()
 }
 
-group = "org.embulk"
-version = "0.8.2-SNAPSHOT"
+group = "io.trocco"
 description = "Loads records from Mongodb."
+version = {
+    def vd = versionDetails()
+    if (vd.commitDistance == 0 && vd.lastTag ==~ /^[0-9]+\.[0-9]+\.[0-9]+(\.[a-zA-Z0-9]+)?/) {
+        vd.lastTag
+    } else {
+        "0.0.0.${vd.gitHash}"
+    }
+}()
 
 sourceCompatibility = 1.8
 targetCompatibility = 1.8
@@ -84,95 +90,16 @@ embulkPlugin {
     type = "mongodb"
 }
 
-publishing {
-    publications {
-        maven(MavenPublication) {
-            groupId = project.group
-            artifactId = project.name
-
-            from components.java  // Must be "components.java". The dependency modification works only for it.
-            // javadocJar and sourcesJar are added by java.withJavadocJar() and java.withSourcesJar() above.
-            // See: https://docs.gradle.org/current/javadoc/org/gradle/api/plugins/JavaPluginExtension.html
-
-            pom {  // https://central.sonatype.org/pages/requirements.html
-                packaging "jar"
-
-                name = project.name
-                description = project.description
-                url = "https://www.embulk.org/"
-
-                licenses {
-                    license {
-                        // http://central.sonatype.org/pages/requirements.html#license-information
-                        name = "The Apache License, Version 2.0"
-                        url = "https://www.apache.org/licenses/LICENSE-2.0.txt"
-                    }
-                }
-
-                developers {
-                    developer {
-                        name = "Kazuyuki Honda"
-                        email = "hakobera@gmail.com"
-                    }
-                    developer {
-                        name = "Satoshi Akama"
-                        email = "satoshiakama@gmail.com"
-                    }
-                    developer {
-                        name = "Shinichi Ishimura"
-                        email = "shiketaudonko41@gmail.com"
-                    }
-                    developer {
-                        name = "Dai MIKURUBE"
-                        email = "dmikurube@treasure-data.com"
-                    }
-                }
-
-                scm {
-                    connection = "scm:git:git://github.com/embulk/embulk-input-mongodb.git"
-                    developerConnection = "scm:git:git@github.com:embulk/embulk-input-mongodb.git"
-                    url = "https://github.com/embulk/embulk-input-mongodb"
-                }
-            }
-        }
-    }
-
-    repositories {
-        maven {  // publishMavenPublicationToMavenCentralRepository
-            name = "mavenCentral"
-            if (project.version.endsWith("-SNAPSHOT")) {
-                url "https://oss.sonatype.org/content/repositories/snapshots"
-            } else {
-                url "https://oss.sonatype.org/service/local/staging/deploy/maven2"
-            }
-
-            credentials {
-                username = project.hasProperty("ossrhUsername") ? ossrhUsername : ""
-                password = project.hasProperty("ossrhPassword") ? ossrhPassword : ""
-            }
-        }
-    }
-}
-
-signing {
-    sign publishing.publications.maven
-}
-
 gem {
-    authors = [ "Kazuyuki Honda", "Dai MIKURUBE" ]
-    email = [ "hakobera@gmail.com", "dmikurube@treasure-data.com" ]
+    authors = [ "" ]
+    email = [ "" ]
     summary = "Mongodb input plugin for Embulk"
-    homepage = "https://github.com/embulk/embulk-input-mongodb"
+    homepage = "https://github.com/trocco-io/embulk-input-mongodb"
     licenses = [ "Apache-2.0" ]
 
     from rootProject.file("LICENSE")
     from rootProject.file("NOTICE_GEM")
     rename ("NOTICE_GEM", "NOTICE")
-}
-
-gemPush {
-    host = "https://rubygems.org"
-    outputs.upToDateWhen { false }
 }
 
 checkstyle {

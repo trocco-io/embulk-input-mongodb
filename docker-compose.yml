@@ -13,6 +13,7 @@ services:
     volumes:
     - mongodb-data:/data/db
     - mongodb-configdb:/data/configdb
+    - ./src:/src
 
   mongo-express:
     container_name: mongo-express

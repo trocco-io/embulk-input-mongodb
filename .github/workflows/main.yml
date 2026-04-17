@@ -1,0 +1,77 @@
+name: main
+
+on:
+  push:
+    branches:
+      - 'master'
+    tags:
+      - '*'
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - 'master'
+    types: [opened, synchronize]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      MONGO_DATABASE: mydb
+      MONGO_COLLECTION: my_collection
+      MONGO_URI: mongodb://localhost:27017/mydb
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Set up JDK 8
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
+        with:
+          java-version: 8
+          distribution: "zulu"
+      - run: mkdir -p ./tmp
+      - run: date
+      - run: docker compose up -d
+      - run: docker compose ps
+      - name: Check
+        run: ./gradlew check --console rich --info
+      - name: Install Embulk
+        run: curl --create-dirs -o ~/.embulk/bin/embulk -L "https://github.com/embulk/embulk/releases/download/v0.10.19/embulk-0.10.19.jar"
+      - name: Set Embulk executable
+        run: chmod +x ~/.embulk/bin/embulk
+      - run: ~/.embulk/bin/embulk --version
+      - name: Build a gem
+        run: ./gradlew gem
+      - name: Mongo DB
+        run: docker compose exec mongodb mongoimport --host 127.0.0.1 -u mongo_user -p dbpass --db $MONGO_DATABASE --collection $MONGO_COLLECTION --type json --drop src/test/resources/my_collection.jsonl
+      - run: ~/.embulk/bin/embulk run -L build/gemContents src/test/resources/basic.yml
+      - run: cat tmp/basic000.00.csv
+      - run: cmp tmp/basic000.00.csv src/test/resources/basic_expected.csv
+      - run: ~/.embulk/bin/embulk run -L build/gemContents src/test/resources/full.yml
+      - run: cat tmp/full000.00.csv
+      - run: cmp tmp/full000.00.csv src/test/resources/full_expected.csv
+      - run: ~/.embulk/bin/embulk run -L build/gemContents src/test/resources/id_field_name.yml
+      - run: cat tmp/id_field_name000.00.csv
+      - run: cmp tmp/id_field_name000.00.csv src/test/resources/id_field_name_expected.csv
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: tests
+          path: ./build/reports/tests/test
+  build:
+    name: Build + Publish
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+      contents: read
+    needs: [ test ]
+    if: ${{ github.event_name == 'workflow_dispatch' || contains(github.ref, 'refs/tags/') }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Set up Ruby 2.7
+        uses: ruby/setup-ruby@7372622e62b60b3cb750dcd2b9e32c247ffec26a # v1.302.0
+        with:
+          ruby-version: 2.7
+      - name: push gem
+        uses: trocco-io/push-gem-to-gpr-action@ece6ed69b9a93b30ff0dbc8bc995d4d647bdbada # v3
+        with:
+          language: java
+          gem-path: "./build/gems/*.gem"
+          github-token: "${{ secrets.GITHUB_TOKEN }}"
