@@ -291,3 +291,35 @@ mongoClientTemp               docker-entrypoint.sh mongo ...   Restarting
 
 $ ./gradlew test  # -t to watch change of files and rebuild continuously
 ```
+
+### Test certificates
+
+TLS / X.509 tests use self-signed certificates under `src/test/resources/`:
+
+- `mongo.crt`, `mongo.key` — CA + server cert/key mounted into the MongoDB containers
+- `keystore.p12` — client keystore (alias `test`, password `password`)
+- `truststore.jks` — client truststore (alias `name`, password `password`)
+
+All four files share the same self-signed cert (`CN=localhost`). If the MongoDB containers crash-loop with `InvalidSSLConfiguration: ... certificate is expired`, regenerate the set (10-year validity) from `src/test/resources/`:
+
+```sh
+TMP=$(mktemp -d)
+openssl req -x509 -newkey rsa:2048 -sha256 -nodes \
+  -keyout "$TMP/key.pem" -out "$TMP/cert.pem" \
+  -days 3650 -subj "/CN=localhost" \
+  -addext "basicConstraints=critical,CA:TRUE"
+
+cp "$TMP/cert.pem" mongo.crt
+cat "$TMP/cert.pem" "$TMP/key.pem" > mongo.key
+
+rm -f keystore.p12
+openssl pkcs12 -export -in "$TMP/cert.pem" -inkey "$TMP/key.pem" \
+  -name test -out keystore.p12 -passout pass:password
+
+rm -f truststore.jks
+keytool -importcert -noprompt -alias name -file "$TMP/cert.pem" \
+  -keystore truststore.jks -storepass password -storetype JKS
+
+rm -rf "$TMP"
+docker compose down && docker compose up -d
+```
