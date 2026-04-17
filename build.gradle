@@ -13,8 +13,8 @@ group = "io.trocco"
 description = "Loads records from Mongodb."
 version = {
     def vd = versionDetails()
-    if (vd.commitDistance == 0 && vd.lastTag ==~ /^[0-9]+\.[0-9]+\.[0-9]+(\.[a-zA-Z0-9]+)?/) {
-        vd.lastTag
+    if (vd.commitDistance == 0 && vd.lastTag ==~ /^v?[0-9]+\.[0-9]+\.[0-9]+(\.[a-zA-Z0-9-]+)*$/) {
+        vd.lastTag.replaceFirst(/^v/, "")
     } else {
         "0.0.0.${vd.gitHash}"
     }
