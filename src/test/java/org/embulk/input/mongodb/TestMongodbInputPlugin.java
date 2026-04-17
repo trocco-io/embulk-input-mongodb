@@ -89,7 +89,7 @@ public class TestMongodbInputPlugin
     public void createResources()
     {
         config = config();
-        plugin = new MongodbInputPlugin();
+        plugin = new MongodbInputPluginWithTimeout();
         output = new MockPageOutput();
     }
 
@@ -238,6 +238,20 @@ public class TestMongodbInputPlugin
         MongoCredential credential = (MongoCredential) createCredential.invoke(plugin, task);
         assertThat("SCRAM-SHA-1", is(credential.getMechanism()));
         assertThat("authdb", is(credential.getSource()));
+    }
+
+    @Test
+    public void testCreateCredentialsX509() throws Exception
+    {
+        final PluginTask task = CONFIG_MAPPER_FACTORY.createConfigMapper().map(
+                configForAuth().deepCopy().set("auth_method", "x-509"),
+                PluginTask.class);
+
+        Method createCredential = MongodbInputPlugin.class.getDeclaredMethod("createCredential", PluginTask.class);
+        createCredential.setAccessible(true);
+        MongoCredential credential = (MongoCredential) createCredential.invoke(plugin, task);
+        assertThat("MONGODB-X509", is(credential.getMechanism()));
+        assertThat("$external", is(credential.getSource()));
     }
 
     @Test(expected = ConfigException.class)

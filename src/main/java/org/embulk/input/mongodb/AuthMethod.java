@@ -25,6 +25,7 @@ import java.util.Locale;
 public enum AuthMethod
 {
     AUTO,
+    X_509,
     SCRAM_SHA_1,
     SCRAM_SHA_256;
 
@@ -39,6 +40,8 @@ public enum AuthMethod
     public static AuthMethod fromString(String value)
     {
         switch (value.replace("_", "-")) {
+            case "x-509":
+                return X_509;
             case "scram-sha-256":
                 return SCRAM_SHA_256;
             case "scram-sha-1":
