@@ -8,12 +8,22 @@ import org.junit.Rule;
 import org.junit.Test;
 
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
 
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
+import java.security.cert.X509Certificate;
+import java.util.Arrays;
+import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.Objects;
 import java.util.function.Function;
 
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 
 public class TestSSLContextUtil
 {
@@ -38,6 +48,20 @@ public class TestSSLContextUtil
     public void testNoTrustStore()
     {
         assertNotNull(create(x -> x.set("trust_store", null)));
+    }
+
+    @Test
+    public void testTrustStoreMergesDefaultTrustManagers() throws Exception
+    {
+        String jksFilePath = Objects.requireNonNull(getClass().getResource("/truststore.jks")).getPath();
+
+        Set<String> defaultSubjects = acceptedIssuerSubjects(SSLContextUtil.createDefaultTrustManagers());
+        Set<String> mergedSubjects = acceptedIssuerSubjects(SSLContextUtil.createTrustManagers(
+                java.nio.file.Paths.get(jksFilePath), "JKS", "password"));
+
+        assertFalse(defaultSubjects.contains("CN=localhost"));
+        assertTrue(mergedSubjects.contains("CN=localhost"));
+        assertTrue(mergedSubjects.containsAll(defaultSubjects));
     }
 
     @Test
@@ -105,5 +129,16 @@ public class TestSSLContextUtil
         }
         final PluginTask task = CONFIG_MAPPER_FACTORY.createConfigMapper().map(config, PluginTask.class);
         return SSLContextUtil.createContext(task);
+    }
+
+    private Set<String> acceptedIssuerSubjects(TrustManager[] trustManagers) throws NoSuchAlgorithmException, KeyStoreException
+    {
+        return Arrays.stream(trustManagers)
+                .filter(X509TrustManager.class::isInstance)
+                .map(X509TrustManager.class::cast)
+                .flatMap(tm -> Arrays.stream(tm.getAcceptedIssuers()))
+                .map(X509Certificate::getSubjectX500Principal)
+                .map(principal -> principal.getName())
+                .collect(Collectors.toSet());
     }
 }

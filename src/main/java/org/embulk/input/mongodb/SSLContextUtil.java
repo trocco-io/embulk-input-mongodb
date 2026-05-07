@@ -18,9 +18,9 @@ import java.security.KeyManagementException;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
-import java.security.UnrecoverableKeyException;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
+import java.security.UnrecoverableKeyException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -68,19 +68,27 @@ public class SSLContextUtil
         }
     }
 
-    private static TrustManager[] createTrustManagers(Path trustStorePath, String trustStoreType, String trustStorePassword) throws IOException, NoSuchAlgorithmException, KeyStoreException, CertificateException
+    static TrustManager[] createTrustManagers(Path trustStorePath, String trustStoreType, String trustStorePassword) throws IOException, NoSuchAlgorithmException, KeyStoreException, CertificateException
     {
         if (trustStorePath == null) {
             return new TrustManager[0];
         }
 
+        TrustManager[] defaultTrustManagers = createDefaultTrustManagers();
         try (InputStream trustStoreInputStream = Files.newInputStream(trustStorePath)) {
             KeyStore trustStore = KeyStore.getInstance(trustStoreType != null ? trustStoreType : KeyStore.getDefaultType());
             trustStore.load(trustStoreInputStream, toCharArray(trustStorePassword));
             TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
             tmf.init(trustStore);
-            return tmf.getTrustManagers();
+            return mergeTrustManagers(defaultTrustManagers, tmf.getTrustManagers());
         }
+    }
+
+    static TrustManager[] createDefaultTrustManagers() throws NoSuchAlgorithmException, KeyStoreException
+    {
+        TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+        tmf.init((KeyStore) null);
+        return tmf.getTrustManagers();
     }
 
     private static KeyManager[] createKeyManagers(Path keyStorePath, String keyStoreType, String keyStorePassword) throws IOException, KeyStoreException, NoSuchAlgorithmException, CertificateException, UnrecoverableKeyException
@@ -114,6 +122,82 @@ public class SSLContextUtil
             {
             }
         };
+    }
+
+    private static TrustManager[] mergeTrustManagers(TrustManager[] defaultTrustManagers, TrustManager[] customTrustManagers)
+    {
+        X509TrustManager mergedTrustManager = createMergedX509TrustManager(defaultTrustManagers, customTrustManagers);
+        if (mergedTrustManager == null) {
+            return customTrustManagers;
+        }
+        return new TrustManager[] { mergedTrustManager };
+    }
+
+    private static X509TrustManager createMergedX509TrustManager(TrustManager[] defaultTrustManagers, TrustManager[] customTrustManagers)
+    {
+        List<X509TrustManager> trustManagers = new ArrayList<>();
+        trustManagers.addAll(extractX509TrustManagers(defaultTrustManagers));
+        trustManagers.addAll(extractX509TrustManagers(customTrustManagers));
+        if (trustManagers.isEmpty()) {
+            return null;
+        }
+        return new X509TrustManager() {
+            @Override
+            public X509Certificate[] getAcceptedIssuers()
+            {
+                List<X509Certificate> issuers = new ArrayList<>();
+                for (X509TrustManager trustManager : trustManagers) {
+                    issuers.addAll(Arrays.asList(trustManager.getAcceptedIssuers()));
+                }
+                return issuers.toArray(new X509Certificate[0]);
+            }
+
+            @Override
+            public void checkClientTrusted(X509Certificate[] certs, String authType) throws CertificateException
+            {
+                checkTrusted(trustManagers, certs, authType, true);
+            }
+
+            @Override
+            public void checkServerTrusted(X509Certificate[] certs, String authType) throws CertificateException
+            {
+                checkTrusted(trustManagers, certs, authType, false);
+            }
+        };
+    }
+
+    private static List<X509TrustManager> extractX509TrustManagers(TrustManager[] trustManagers)
+    {
+        List<X509TrustManager> x509TrustManagers = new ArrayList<>();
+        for (TrustManager trustManager : trustManagers) {
+            if (trustManager instanceof X509TrustManager) {
+                x509TrustManagers.add((X509TrustManager) trustManager);
+            }
+        }
+        return x509TrustManagers;
+    }
+
+    private static void checkTrusted(List<X509TrustManager> trustManagers, X509Certificate[] certs, String authType, boolean client) throws CertificateException
+    {
+        CertificateException lastException = null;
+        for (X509TrustManager trustManager : trustManagers) {
+            try {
+                if (client) {
+                    trustManager.checkClientTrusted(certs, authType);
+                }
+                else {
+                    trustManager.checkServerTrusted(certs, authType);
+                }
+                return;
+            }
+            catch (CertificateException e) {
+                lastException = e;
+            }
+        }
+        if (lastException != null) {
+            throw lastException;
+        }
+        throw new CertificateException("No X509TrustManager available");
     }
 
     private static <T> T[] presence(T[] arg)
